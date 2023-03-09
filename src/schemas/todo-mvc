@@ -1,10 +1,10 @@
 BEGIN;
 
-CREATE TABLE IF NOT EXISTS "todo" ("id" PRIMARY KEY, "text", "completed");
+CREATE TABLE IF NOT EXISTS "text" ("id" PRIMARY KEY, "char", "position");
 CREATE TABLE IF NOT EXISTS "presence" (id primary key, name, x, y);
 
 SELECT
-  crsql_as_crr('todo');
+  crsql_as_crr('text');
 
 SELECT
   crsql_as_crr('presence');
