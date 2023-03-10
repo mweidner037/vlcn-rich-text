@@ -1,8 +1,9 @@
 import { CtxAsync as Ctx, useQuery } from "@vlcn.io/react";
 import Quill, { Delta as DeltaType, DeltaStatic } from "quill";
+import "quill/dist/quill.snow.css";
 import React from "react";
 import ReactQuill from "react-quill";
-import "react-quill/dist/quill.snow.css";
+import { newId } from "./id";
 import { PositionSource } from "./position_source";
 
 const Delta: typeof DeltaType = Quill.import("delta");
@@ -10,6 +11,7 @@ const Delta: typeof DeltaType = Quill.import("delta");
 type Char = {
   position: string;
   char: string;
+  italic: string;
 };
 
 /**
@@ -58,11 +60,21 @@ export default function TodoList({
     return <div>loading...</div>;
   }
 
+  // TODO: indexes on format?
+  // TODO: can we use the internal LWW field instead of our own Lamport?
   const textAnn: Char[] = useQuery<Char>(
     ctx,
-    "SELECT * FROM text ORDER BY position"
+    "SELECT position, char, " +
+      "(SELECT format_value FROM format WHERE format.startPos <= text.position AND " +
+      "text.position < format.endPos AND format.format_key = 'italic'" +
+      "ORDER BY format.lamport DESC LIMIT 1) italic " +
+      "FROM text ORDER BY position"
   ).data;
-  const text = textAnn.map((charAnn) => charAnn.char).join("");
+  const lamport =
+    useQuery<{ lamport: number }>(
+      ctx,
+      "SELECT lamport FROM format ORDER BY lamport DESC LIMIT 1"
+    ).data[0]?.lamport ?? 0;
 
   function onChange(_: string, delta: DeltaStatic, source: string) {
     // TODO: changes that remove formatting
@@ -70,7 +82,12 @@ export default function TodoList({
     // a link off, instead get emitted with source "api".
     if (source !== "user") return;
 
+    // TODO: if multiple changes are dispatched at once (e.g. paste-during-highlight),
+    // positions might behave weirdly because textAnn is not updated immediately.
+
+    console.log("onChange");
     for (const op of getRelevantDeltaOperations(delta)) {
+      console.log("op", op);
       // Insertion
       if (op.insert) {
         if (typeof op.insert === "string") {
@@ -108,37 +125,47 @@ export default function TodoList({
           db!.exec("DELETE FROM text WHERE position = ?", [pos]);
         }
       }
-      // Formatting TODO
-      // else if (op.attributes && op.retain) {
-      //   for (let i = 0; i < op.retain; i++) {
-      //     // For max CRDT-ness, we should implement each attr value as an
-      //     // LWWRegister. Instead, out of laziness, we will use
-      //     // RTDB's built-in conflict resolution for set()s and
-      //     // remove()s, which does essentially the same thing.
-      //     for (const [attr, value] of Object.entries(op.attributes)) {
-      //       const attrRef = ref(
-      //         db,
-      //         "text/" + keys[op.index + i] + "/attrs/" + attr
-      //       );
-      //       if (value === null) {
-      //         // Delete attr.
-      //         remove(attrRef);
-      //       } else {
-      //         set(attrRef, value);
-      //       }
-      //     }
-      //   }
-      // }
+      // Formatting
+      // TODO: if this is just a new char receiving the existing format,
+      // we can skip this. Else will be inefficient.
+      else if (op.attributes && op.retain) {
+        const startPos = textAnn[op.index].position;
+        const endPos =
+          op.index + op.retain === textAnn.length
+            ? posSource!.LAST
+            : textAnn[op.index + op.retain].position;
+        for (const [attr, value] of Object.entries(op.attributes)) {
+          // Store as a formatting span in format.
+          db!.exec("INSERT INTO format VALUES (?, ?, ?, ?, ?, ?)", [
+            newId(db!.siteid.replaceAll("-", "")),
+            attr,
+            value == null ? "" : `${value}`,
+            startPos,
+            endPos,
+            lamport + 1,
+          ]);
+        }
+      }
     }
   }
 
-  const quillState = new Delta().insert(text);
+  const quillState = new Delta({
+    ops: textAnn.map((charAnn) => ({
+      insert: charAnn.char,
+      attributes: charAnn.italic === "true" ? { italic: true } : {},
+    })),
+  });
+  console.log("state", quillState.ops);
+
+  // TODO: bold renders as <strong>, which is not visible for some reason
+  // (at least in Firefox). So we are using italic only for now.
 
   return (
     <ReactQuill
       theme="snow"
       value={quillState}
-      formats={[]}
+      formats={["italic"]}
+      modules={{ toolbar: ["italic"] }}
       onChange={onChange}
     />
   );

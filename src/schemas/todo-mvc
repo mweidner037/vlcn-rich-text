@@ -1,9 +1,12 @@
 BEGIN;
 
 CREATE TABLE IF NOT EXISTS "text" (position primary key, char);
+CREATE TABLE IF NOT EXISTS "format" (id primary key, format_key, format_value, startPos, endPos, lamport int);
 
 SELECT
   crsql_as_crr('text');
 
+SELECT
+  crsql_as_crr('format');
 
 COMMIT;

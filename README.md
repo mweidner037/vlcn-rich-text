@@ -1,12 +1,8 @@
-# vlcn-live-examples
+# vlcn-rich-text
 
-Example apps. Deployed to https://vlcn-live-examples.fly.dev/
+Forked from [https://github.com/vlcn-io/live-examples](https://github.com/vlcn-io/live-examples).
 
-- TodoMVC: https://vlcn-live-examples.fly.dev/todomvc.html
-  - After opening a todo list, share the link with others to collaborate on that list.
-- Strut
-- TodoMVC p2p: https://vlcn-live-examples.fly.dev/todomvc-p2p.html
-
+Changes the todo-list to a rich-text editor.
 
 ---
 
@@ -16,12 +12,14 @@ Running locally:
 git clone git@github.com:vlcn-io/live-examples.git
 cd live-examples
 npm install
-npm start:dev && npm start:ui
 ```
 
-For the p2p example, you'll need to run a peer js server for discover:
+Then in separate terminals:
 
 ```
-npm install peer -g
-peerjs --port 9000 --path /examples
+npm run start:ui
+```
+
+```
+npm run start:dev
 ```
