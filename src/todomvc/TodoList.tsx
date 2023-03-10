@@ -85,19 +85,18 @@ export default function TodoList({
     // TODO: if multiple changes are dispatched at once (e.g. paste-during-highlight),
     // positions might behave weirdly because textAnn is not updated immediately.
 
-    console.log("onChange");
     for (const op of getRelevantDeltaOperations(delta)) {
-      console.log("op", op);
       // Insertion
       if (op.insert) {
         if (typeof op.insert === "string") {
           const newPositions: string[] = [];
-          let before =
-            op.index === 0 ? undefined : textAnn[op.index - 1].position;
-          const after =
-            op.index === textAnn.length
-              ? undefined
-              : textAnn[op.index].position;
+          const prevCharAnn =
+            op.index === 0 ? undefined : textAnn[op.index - 1];
+          const nextCharAnn =
+            op.index === textAnn.length ? undefined : textAnn[op.index];
+
+          let before = prevCharAnn?.position;
+          const after = nextCharAnn?.position;
           for (let i = 0; i < op.insert.length; i++) {
             const newPos = posSource!.createBetween(before, after);
             newPositions.push(newPos);
@@ -109,6 +108,25 @@ export default function TodoList({
             db!.exec("INSERT INTO text VALUES (?, ?)", [
               newPositions[i],
               op.insert.charAt(i),
+            ]);
+          }
+
+          // If the intended formatting is different from inherited,
+          // need to format.
+          // We know that the inherited formatting is that of prevCharAnn,
+          // due to half-openness and non-interleaving. (Note: won't be true for closed
+          // intervals).
+          // TODO: maybe can get messed up when prevCharAnn is undefined?
+          // TODO: generalize to all formats
+          const value = op.attributes?.["bold"] ? "true" : "";
+          if (prevCharAnn !== undefined && prevCharAnn.bold !== value) {
+            db!.exec("INSERT INTO format VALUES (?, ?, ?, ?, ?, ?)", [
+              newId(db!.siteid.replaceAll("-", "")),
+              "bold",
+              value,
+              newPositions[0],
+              nextCharAnn?.position ?? posSource!.LAST,
+              lamport + 1,
             ]);
           }
         } else {
@@ -125,9 +143,7 @@ export default function TodoList({
           db!.exec("DELETE FROM text WHERE position = ?", [pos]);
         }
       }
-      // Formatting
-      // TODO: if this is just a new char receiving the existing format,
-      // we can skip this. Else will be inefficient.
+      // Formatting. Note this is not used for new chars.
       else if (op.attributes && op.retain) {
         const startPos = textAnn[op.index].position;
         const endPos =
@@ -149,13 +165,14 @@ export default function TodoList({
     }
   }
 
+  // TODO: try removing silly true/"true" wrapper.
+
   const quillState = new Delta({
     ops: textAnn.map((charAnn) => ({
       insert: charAnn.char,
       attributes: charAnn.bold === "true" ? { bold: true } : {},
     })),
   });
-  console.log("state", quillState.ops);
 
   return (
     <ReactQuill
