@@ -1,12 +1,9 @@
 BEGIN;
 
-CREATE TABLE IF NOT EXISTS "text" ("id" PRIMARY KEY, "char", "position");
-CREATE TABLE IF NOT EXISTS "presence" (id primary key, name, x, y);
+CREATE TABLE IF NOT EXISTS "text" (position primary key, char);
 
 SELECT
   crsql_as_crr('text');
 
-SELECT
-  crsql_as_crr('presence');
 
 COMMIT;

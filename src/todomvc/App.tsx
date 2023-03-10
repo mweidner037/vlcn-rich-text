@@ -2,17 +2,20 @@ import React, { useState } from "react";
 
 import { SQLite3 } from "@vlcn.io/wa-crsqlite";
 
+import { Ctx } from "./openDB.js";
+import { PositionSource } from "./position_source.js";
 import SelectList from "./SelectList.js";
 import TodoList from "./TodoList.js";
-import { Ctx } from "./openDB.js";
 import todoLists from "./todoLists.js";
 
 export default function App({ sqlite }: { sqlite: SQLite3 }) {
   const [openOrConnect, setOpenOrConnect] = useState(true);
   const [ctx, setCtx] = useState<Ctx | null>(null);
+  const [posSource, setPosSource] = useState<PositionSource | null>(null);
 
   const onDbOpened = (ctx: Ctx) => {
     setCtx(ctx);
+    setPosSource(new PositionSource());
     setOpenOrConnect(false);
     todoLists.add({
       dbid: ctx.dbid,
@@ -34,7 +37,7 @@ export default function App({ sqlite }: { sqlite: SQLite3 }) {
           onDbOpened={onDbOpened}
         />
       ) : (
-        <TodoList ctx={ctx} />
+        <TodoList ctx={ctx} posSource={posSource} />
       )}
     </div>
   );
