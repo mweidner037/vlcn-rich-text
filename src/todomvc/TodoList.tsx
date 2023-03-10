@@ -159,6 +159,7 @@ export default function TodoList({
             value == null ? "" : `${value}`,
             startPos,
             endPos,
+            // TODO: also need siteID as a tiebreaker
             lamport + 1,
           ]);
         }
