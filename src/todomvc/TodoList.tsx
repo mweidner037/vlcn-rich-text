@@ -11,7 +11,7 @@ const Delta: typeof DeltaType = Quill.import("delta");
 type Char = {
   position: string;
   char: string;
-  italic: string;
+  bold: string;
 };
 
 /**
@@ -66,8 +66,8 @@ export default function TodoList({
     ctx,
     "SELECT position, char, " +
       "(SELECT format_value FROM format WHERE format.startPos <= text.position AND " +
-      "text.position < format.endPos AND format.format_key = 'italic'" +
-      "ORDER BY format.lamport DESC LIMIT 1) italic " +
+      "text.position < format.endPos AND format.format_key = 'bold'" +
+      "ORDER BY format.lamport DESC LIMIT 1) bold " +
       "FROM text ORDER BY position"
   ).data;
   const lamport =
@@ -152,20 +152,17 @@ export default function TodoList({
   const quillState = new Delta({
     ops: textAnn.map((charAnn) => ({
       insert: charAnn.char,
-      attributes: charAnn.italic === "true" ? { italic: true } : {},
+      attributes: charAnn.bold === "true" ? { bold: true } : {},
     })),
   });
   console.log("state", quillState.ops);
-
-  // TODO: bold renders as <strong>, which is not visible for some reason
-  // (at least in Firefox). So we are using italic only for now.
 
   return (
     <ReactQuill
       theme="snow"
       value={quillState}
-      formats={["italic"]}
-      modules={{ toolbar: ["italic"] }}
+      formats={["bold"]}
+      modules={{ toolbar: ["bold"] }}
       onChange={onChange}
     />
   );
