@@ -112,14 +112,15 @@ export default function TodoList({
           }
 
           // If the intended formatting is different from inherited,
-          // need to format.
+          // need to reformat.
           // We know that the inherited formatting is that of prevCharAnn,
           // due to half-openness and non-interleaving. (Note: won't be true for closed
           // intervals).
-          // TODO: maybe can get messed up when prevCharAnn is undefined?
+          // When prevCharAnn is undefined (beginning), we don't know what the format
+          // will be, so we reformat just in case.
           // TODO: generalize to all formats
           const value = op.attributes?.["bold"] ? "true" : "";
-          if (prevCharAnn !== undefined && prevCharAnn.bold !== value) {
+          if (prevCharAnn === undefined || prevCharAnn.bold !== value) {
             db!.exec("INSERT INTO format VALUES (?, ?, ?, ?, ?, ?)", [
               newId(db!.siteid.replaceAll("-", "")),
               "bold",
